@@ -3,7 +3,7 @@
 ## Installation Process
 
 1. Create a virtual environment.``python -m venv .venv``
-2. Activate the virtual environment.``.venv/Script/activate``(windows) || ``source .venv/bin/activate``
+2. Activate the virtual environment.``.venv/Script/activate``(windows) || ``source .venv/bin/activate``(Linax)
 3. Install requirements using `pip install -r requirements.txt`.
 4. Attach the default database with data provided in the project, or set up your own database.
 
