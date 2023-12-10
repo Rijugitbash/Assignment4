@@ -2,8 +2,8 @@
 
 ## Installation Process
 
-1. Create a virtual environment.
-2. Activate the virtual environment.
+1. Create a virtual environment.``python -m venv .venv``
+2. Activate the virtual environment.``.venv/Script/activate``(windows) || ``source .venv/bin/activate``
 3. Install requirements using `pip install -r requirements.txt`.
 4. Attach the default database with data provided in the project, or set up your own database.
 
@@ -23,4 +23,4 @@
 6. Apply migrations to create tables in the database with ``python manage.py migrate``.
 7. Run the project with ``python manage.py runserver``.
 
-#### Attached the api endpoint in project
+#### Attached the  api endpoint documentation in project
