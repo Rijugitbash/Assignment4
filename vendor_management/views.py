@@ -1,9 +1,13 @@
+from django.shortcuts import get_object_or_404
+from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework import status
 from .models import *
 from .serializers import *
+from .calculate_logic import *
 
+
+# Vendor Views
 @api_view(['GET', 'POST'])
 def vendor_list_create(request):
     if request.method == 'GET':
@@ -14,16 +18,14 @@ def vendor_list_create(request):
     elif request.method == 'POST':
         serializer = VendorSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            vendor_obj = serializer.save()
+            HistoricalPerformance.objects.create(vendor_id = vendor_obj.id)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT', 'DELETE'])
-def vendor_detail(request, vendor_id):
-    try:
-        vendor = Vendor.objects.get(pk=vendor_id)
-    except Vendor.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+def vendor_detail(request, pk):
+    vendor = get_object_or_404(Vendor, pk=pk)
 
     if request.method == 'GET':
         serializer = VendorSerializer(vendor)
@@ -39,19 +41,20 @@ def vendor_detail(request, vendor_id):
     elif request.method == 'DELETE':
         vendor.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-    
 
+@api_view(['GET'])
+def VendorFilterView(request):
+    queryset = Vendor.objects.all()
+    serializer = VendorSerializer(queryset, many=True)
+    vendor_filter = VendorFilter(request.GET, queryset=queryset)
+    serializer = VendorSerializer(vendor_filter.qs, many=True)
+    return Response(serializer.data)
 
-
-@api_view(['POST', 'GET'])
-def purchase_order_list(request):
+# Purchase Order Views
+@api_view(['GET', 'POST'])
+def purchase_order_list_create(request):
     if request.method == 'GET':
-        vendor_id = request.GET.get('vendor_id')
-        if vendor_id:
-            purchase_orders = PurchaseOrder.objects.filter(vendor__id=vendor_id)
-        else:
-            purchase_orders = PurchaseOrder.objects.all()
-
+        purchase_orders = PurchaseOrder.objects.all()
         serializer = PurchaseOrderSerializer(purchase_orders, many=True)
         return Response(serializer.data)
 
@@ -63,11 +66,8 @@ def purchase_order_list(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT', 'DELETE'])
-def purchase_order_detail(request, po_id):
-    try:
-        purchase_order = PurchaseOrder.objects.get(pk=po_id)
-    except PurchaseOrder.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+def purchase_order_detail(request, pk):
+    purchase_order = get_object_or_404(PurchaseOrder, pk=pk)
 
     if request.method == 'GET':
         serializer = PurchaseOrderSerializer(purchase_order)
@@ -83,14 +83,50 @@ def purchase_order_detail(request, po_id):
     elif request.method == 'DELETE':
         purchase_order.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
+@api_view(['GET','POST'])
+def after_complate_order(request, pk):
+    if request.method == "GET":
+        purchase_order = get_object_or_404(PurchaseOrder, pk=pk)
+        return Response({"Status":purchase_order.status, "Rating": purchase_order.quality_rating})
     
+    if request.method == "POST":
+        quality_rating = request.data.get("quality_rating")  # Change () to .get()
+        purchase_order = get_object_or_404(PurchaseOrder, pk=pk)
+        purchase_order_details = PurchaseOrder.objects.filter(id=pk).first()
+        purchase_order_details.status = "completed"
+        purchase_order_details.quality_rating = float(quality_rating)
+        purchase_order_details.acknowledgment_date = datetime.datetime.now()
+        purchase_order_details.save()
 
+        vendor_all_order = PurchaseOrder.objects.filter(vendor_id=purchase_order.vendor, status="completed").values()  
+        on_time_delivery_percentage = calculate_on_time_delivery_percentage(vendor_all_order)
+        average_rating = calculate_average_rating(vendor_all_order)
+        average_response_time = calculate_average_response_time(vendor_all_order)
+        completion_percentage = calculate_completion_percentage(vendor_all_order)
+        print(on_time_delivery_percentage, average_rating, average_response_time, completion_percentage)
+        Vendor.objects.filter(id=purchase_order.vendor.id).update(
+            on_time_delivery_rate=float(on_time_delivery_percentage),
+            quality_rating_avg=float(average_rating),
+            average_response_time=float(average_response_time),
+            fulfillment_rate=float(completion_percentage)
+        )
+        vendor_history = HistoricalPerformance.objects.filter(vendor_id=purchase_order.vendor).first()
+        vendor_history.date = datetime.datetime.now()
+        vendor_history.on_time_delivery_rate = float(on_time_delivery_percentage)
+        vendor_history.quality_rating_avg = float(average_rating)
+        vendor_history.average_response_time = float(average_response_time)
+        vendor_history.fulfillment_rate = float(completion_percentage)
+        vendor_history.save()
+    return Response({"res": "Delivery Successfully completed"})
+
+
+# Vendor Performance View
 @api_view(['GET'])
-def vendor_performance(request, vendor_id):
-    try:
-        vendor = Vendor.objects.get(pk=vendor_id)
-    except Vendor.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
-    serializer = VendorPerfomanceSerializer(vendor)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+def vendor_performance(request, pk):
+    vendor = get_object_or_404(Vendor, pk=pk)
+    performance = HistoricalPerformance.objects.filter(vendor=vendor).latest('date')
+    serializer = HistoricalPerformanceSerializer(performance)
+    return Response(serializer.data)
