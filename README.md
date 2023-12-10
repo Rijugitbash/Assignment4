@@ -1,22 +1,26 @@
 # Vendor Management System
 
-# Vendor Management System
+## Installation Process
 
-## Installation
+1. Create a virtual environment.
+2. Activate the virtual environment.
+3. Install requirements using `pip install -r requirements.txt`.
+4. Attach the default database with data provided in the project, or set up your own database.
 
-1. Create and activate a virtual environment.
-2. Install requirements: `pip install -r requirements.txt`.
-3. Set up the database in `settings.py`.
+   ```python
+   # settings.py
+   DATABASES = {
+       "default": {
+           "ENGINE": "django.db.backends.postgresql",
+           "NAME": "mydatabase",
+           "USER": "mydatabaseuser",
+           "PASSWORD": "mypassword",
+           "HOST": "127.0.0.1",
+           "PORT": "5432",
+       }
+   }
+5. Create migration files with ``python manage.py makemigrations``.
+6. Apply migrations to create tables in the database with ``python manage.py migrate``.
+7. Run the project with ``python manage.py runserver``.
 
-```python
-# settings.py
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "mydatabase",
-        "USER": "mydatabaseuser",
-        "PASSWORD": "mypassword",
-        "HOST": "127.0.0.1",
-        "PORT": "5432",
-    }
-}
+#### Attached the api endpoint in project
